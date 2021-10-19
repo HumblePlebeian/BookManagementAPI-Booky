@@ -97,8 +97,10 @@ bookie.get("/lang/:language", (request,response) => {
 });
 
 
+//POST REQUESTS
+
 /*
-POST Request
+POST Request - 1
 Route: /book/new
 Purpose: Create and add a new book
 Method: POST
@@ -110,16 +112,199 @@ bookie.post("/book/new", (request,response) => {
 });
 
 /*
-POST Request
+POST Request - 2
 Route: /author/new
 Purpose: Create and add a new author
 Method: POST
 */
-
 bookie.post("/author/new", (request,response) => {
     const newAuthor = request.body;
     database.author.push(newAuthor);
     return response.json({updatedAutors: database.author});
+});
+
+/*
+POST Request - 3
+Route: /publication/new
+Purpose: Create and add a new publication
+Method: POST
+*/
+booky.post("/publication/new", async(req, res) => {
+    const {newPublication} = req.body;
+     const addNewPub =PublicationModel.create(newPub);
+    return res.json({upadatedPub :addNewPub ,
+  message: "A new publication added successfully!"});
+});
+
+
+// PUT(Update) REQUESTS
+
+/* PUT Request-1
+Route            /book/update
+Description      Update book on isbn
+Access           PUBLIC
+Parameter        isbn
+Methods          PUT
+*/
+
+booky.put("/book/update/:isbn",async (req,res) => {
+  const updatedBook = await BookModel.findOneAndUpdate(
+    {
+      ISBN: req.params.isbn
+    },
+    {
+      title: req.body.bookTitle
+    },
+    {
+      new: true
+    }
+  );
+
+  return res.json({
+    books: updatedBook
+  });
+});
+
+
+/* PUT Request-2
+Route            /book/author/update
+Description      Update /add new author
+Access           PUBLIC
+Parameter        isbn
+Methods          PUT
+*/
+
+booky.put("/book/author/update/:isbn", async(req,res) =>{
+  //Update book database
+const updatedBook = await BookModel.findOneAndUpdate(
+  {
+    ISBN: req.params.isbn
+  },
+  {
+    $addToSet: {
+      authors: req.body.newAuthor
+    }
+  },
+  {
+    new: true
+  }
+);
+
+  //Update the author database
+  const updatedAuthor = await AuthorModel.findOneAndUpdate(
+    {
+      id: req.body.newAuthor
+    },
+    {
+      $addToSet: {
+        books: req.params.isbn
+      }
+    },
+    {
+      new: true
+    }
+  );
+
+  return res.json(
+    {
+      bookss: updatedBook,
+      authors: updatedAuthor,
+      message: "New author was added"
+    }
+  );
+} );
+
+
+
+/* PUT Request-3
+Route            /publication/update/book
+Description      Update /add new publication
+Access           PUBLIC
+Parameter        isbn
+Methods          PUT
+*/
+
+booky.put("/publication/update/book/:isbn", (req,res) => {
+  //Update the publication database
+  database.publication.forEach((pub) => {
+    if(pub.id === req.body.pubId) {
+      return pub.books.push(req.params.isbn);
+    }
+  });
+
+  //Update the book database
+  database.books.forEach((book) => {
+    if(book.ISBN === req.params.isbn) {
+      book.publications = req.body.pubId;
+      return;
+    }
+  });
+
+  return res.json(
+    {
+      books: database.books,
+      publications: database.publication,
+      message: "Successfully updated publications"
+    }
+  );
+});
+
+
+
+//DELETE REQUESTS
+
+/*
+DELETE Request
+Purpose: Delete a book based on ISBN
+*/
+booky.delete("/book/delete/:isbn", async(req, res) => {
+    const updatedBookDatabase = await BookModel.findOneAndDelete({ISBN: req.params.isbn});
+    return res.json({books: updatedBookDatabase});
+});
+
+
+/*
+DELETE Request - 2 
+Purpose: Delete an author based on authID
+*/
+booky.delete("/author/delete/:id", async(req, res) => {
+    const updatedAuthorDatabase = await AuthorModel.findOneAndDelete({id: req.params.id});
+    return res.json({authors: updatedAuthorDatabase});
+});
+
+/*
+DELETE Request - 3
+Purpose: Delete a book based on ISBN & an author based on authID
+*/
+
+booky.delete("/book/delete/author/:isbn/:authorId", (req,res) => {
+  //Update the book database
+   database.books.forEach((book)=>{
+     if(book.ISBN === req.params.isbn) {
+       const newAuthorList = book.author.filter(
+         (eachAuthor) => eachAuthor !== parseInt(req.params.authorId)
+       );
+       book.author = newAuthorList;
+       return;
+     }
+   });
+
+
+  //Update the author database
+  database.author.forEach((eachAuthor) => {
+    if(eachAuthor.id === parseInt(req.params.authorId)) {
+      const newBookList = eachAuthor.books.filter(
+        (book) => book !== req.params.isbn
+      );
+      eachAuthor.books = newBookList;
+      return;
+    }
+  });
+
+  return res.json({
+    book: database.books,
+    author: database.author
+  });
 });
 
 
